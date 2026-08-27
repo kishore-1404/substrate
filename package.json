@@ -6,21 +6,50 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "seed": "tsx --env-file=.env.local src/lib/db/seed.ts",
+    "ingest:concepts": "tsx --env-file=.env.local src/lib/db/ingest-concepts.ts",
+    "seed:book": "tsx --env-file=.env.local src/lib/db/seed-book-structure.ts",
+    "seed:book-concepts": "tsx --env-file=.env.local src/lib/db/seed-book-concepts.ts"
   },
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
+    "@google/genai": "^2.19.0",
+    "@langchain/core": "^1.2.9",
+    "@langchain/langgraph": "^1.4.12",
+    "@markdy/core": "^1.0.30",
+    "@markdy/renderer-dom": "^1.0.30",
+    "@neondatabase/serverless": "^1.1.0",
+    "@tailwindcss/typography": "^0.5.20",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.34.0",
     "next": "16.3.3",
+    "next-themes": "^0.4.6",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "shadcn": "^4.19.0",
+    "tailwind-merge": "^3.6.0",
+    "tw-animate-css": "^1.4.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "playwright": "^1.62.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }
