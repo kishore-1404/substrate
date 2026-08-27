@@ -133,6 +133,11 @@ export const users = pgTable("users", {
   experienceLevel: text("experience_level"), // junior | mid | senior
   goal: text("goal"),
   preferredExplanationStyle: text("preferred_explanation_style"),
+  // Per-user model choice — which provider/model powers generation and chat
+  // for THIS learner, not a global app setting. Null model = provider's
+  // default (see lib/ai/providers/*.ts DEFAULT_MODEL).
+  llmProvider: text("llm_provider").notNull().default("gemini"), // "gemini" | "openrouter"
+  llmModel: text("llm_model"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

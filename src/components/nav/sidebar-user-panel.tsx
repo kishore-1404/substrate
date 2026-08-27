@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ModelSettingsSheet } from "./model-settings-sheet";
 
 interface ContinueCard {
   breadcrumb: string;
@@ -16,15 +17,20 @@ export function SidebarUserPanel({
   daysActive,
   continueCard,
   otherUsers,
+  llmProvider,
+  llmModel,
 }: {
   currentUserId: string;
   currentUserName: string;
   daysActive: number;
   continueCard: ContinueCard | null;
   otherUsers: { id: string; name: string }[];
+  llmProvider: string;
+  llmModel: string | null;
 }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [modelSheetOpen, setModelSheetOpen] = useState(false);
 
   const initials = currentUserName
     .split(" ")
@@ -81,6 +87,15 @@ export function SidebarUserPanel({
               </button>
             ))}
             <div className="my-1 h-px bg-border" />
+            <button
+              onClick={() => {
+                setModelSheetOpen(true);
+                setMenuOpen(false);
+              }}
+              className="rounded-[7px] px-2.5 py-2 text-left text-sm font-medium hover:bg-muted"
+            >
+              Model settings
+            </button>
             <button onClick={logout} className="rounded-[7px] px-2.5 py-2 text-left text-sm font-semibold text-destructive hover:bg-muted">
               Log out
             </button>
@@ -99,6 +114,13 @@ export function SidebarUserPanel({
           </span>
         </button>
       </div>
+
+      <ModelSettingsSheet
+        open={modelSheetOpen}
+        onOpenChange={setModelSheetOpen}
+        currentProvider={llmProvider}
+        currentModel={llmModel}
+      />
     </>
   );
 }

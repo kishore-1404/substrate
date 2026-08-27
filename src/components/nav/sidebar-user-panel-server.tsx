@@ -15,6 +15,8 @@ interface PanelData {
   daysActive: number;
   continueCard: ContinueCard | null;
   otherUsers: { id: string; name: string }[];
+  llmProvider: string;
+  llmModel: string | null;
 }
 
 async function loadPanelData(userId: string): Promise<PanelData | null> {
@@ -61,7 +63,14 @@ async function loadPanelData(userId: string): Promise<PanelData | null> {
     }
   }
 
-  return { currentUserName: user.name, daysActive: activeDays.size, continueCard, otherUsers };
+  return {
+    currentUserName: user.name,
+    daysActive: activeDays.size,
+    continueCard,
+    otherUsers,
+    llmProvider: user.llmProvider,
+    llmModel: user.llmModel,
+  };
 }
 
 // Isolated on purpose — every DB query the sidebar needs lives here, inside
@@ -94,6 +103,8 @@ export async function SidebarUserPanelServer({ userId }: { userId: string }) {
       daysActive={data.daysActive}
       continueCard={data.continueCard}
       otherUsers={data.otherUsers}
+      llmProvider={data.llmProvider}
+      llmModel={data.llmModel}
     />
   );
 }

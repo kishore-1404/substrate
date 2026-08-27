@@ -3,6 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { getSessionUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { experiences, concepts, topics, chapters, books, users, conceptMastery } from "@/lib/db/schema";
+import { withDbRetry } from "@/lib/db/retry";
 import { Progress } from "@/components/ui/progress";
 import { buttonVariants } from "@/components/ui/button";
 import { BookGrid } from "@/components/home/book-grid";
@@ -14,17 +15,17 @@ export default async function Home() {
   if (!userId) return null;
 
   const [[user], mastery] = await Promise.all([
-    db.select().from(users).where(eq(users.id, userId)),
+    withDbRetry(() => db.select().from(users).where(eq(users.id, userId))),
     // "Resume experience" must reflect THIS user's own progress, not just
     // any experience that happens to exist — derive it from their own
     // conceptMastery rows (same source the sidebar's Continue card uses).
-    db.select().from(conceptMastery).where(eq(conceptMastery.userId, userId)),
+    withDbRetry(() => db.select().from(conceptMastery).where(eq(conceptMastery.userId, userId))),
   ]);
 
   // Only fetch the concepts this user actually has mastery rows for — not
   // all 460+ concepts in the book just to build a lookup map.
   const conceptRows = mastery.length
-    ? await db.select().from(concepts).where(inArray(concepts.id, mastery.map((m) => m.conceptId)))
+    ? await withDbRetry(() => db.select().from(concepts).where(inArray(concepts.id, mastery.map((m) => m.conceptId))))
     : [];
   const conceptById = new Map(conceptRows.map((c) => [c.id, c]));
 
@@ -41,22 +42,24 @@ export default async function Home() {
   if (mostRecentMastery) {
     const concept = conceptById.get(mostRecentMastery.conceptId);
     if (concept) {
-      const [row] = await db
-        .select({
-          id: experiences.id,
-          title: experiences.title,
-          conceptTitle: concepts.title,
-          topicTitle: topics.title,
-          chapterTitle: chapters.title,
-          chapterNumber: chapters.number,
-          bookTitle: books.title,
-        })
-        .from(experiences)
-        .innerJoin(concepts, eq(experiences.conceptId, concepts.id))
-        .innerJoin(topics, eq(concepts.topicId, topics.id))
-        .innerJoin(chapters, eq(topics.chapterId, chapters.id))
-        .innerJoin(books, eq(chapters.bookId, books.id))
-        .where(eq(experiences.conceptId, concept.id));
+      const [row] = await withDbRetry(() =>
+        db
+          .select({
+            id: experiences.id,
+            title: experiences.title,
+            conceptTitle: concepts.title,
+            topicTitle: topics.title,
+            chapterTitle: chapters.title,
+            chapterNumber: chapters.number,
+            bookTitle: books.title,
+          })
+          .from(experiences)
+          .innerJoin(concepts, eq(experiences.conceptId, concepts.id))
+          .innerJoin(topics, eq(concepts.topicId, topics.id))
+          .innerJoin(chapters, eq(topics.chapterId, chapters.id))
+          .innerJoin(books, eq(chapters.bookId, books.id))
+          .where(eq(experiences.conceptId, concept.id))
+      );
       featured = row ?? null;
     }
   }

@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import { getSessionUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { conceptMastery, concepts } from "@/lib/db/schema";
+import { withDbRetry } from "@/lib/db/retry";
 import { Progress as ProgressBar } from "@/components/ui/progress";
 
 export const dynamic = "force-dynamic";
@@ -10,9 +11,9 @@ export default async function ProgressPage() {
   const userId = await getSessionUserId();
   if (!userId) return null;
 
-  const masteryRows = await db.select().from(conceptMastery).where(eq(conceptMastery.userId, userId));
+  const masteryRows = await withDbRetry(() => db.select().from(conceptMastery).where(eq(conceptMastery.userId, userId)));
   const conceptRows = masteryRows.length
-    ? await db.select().from(concepts).where(inArray(concepts.id, masteryRows.map((m) => m.conceptId)))
+    ? await withDbRetry(() => db.select().from(concepts).where(inArray(concepts.id, masteryRows.map((m) => m.conceptId))))
     : [];
   const conceptById = new Map(conceptRows.map((c) => [c.id, c]));
 

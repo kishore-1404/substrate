@@ -1,6 +1,6 @@
 import { Annotation, StateGraph, START, END } from "@langchain/langgraph";
 import { buildContext, type ContextPackage } from "./context-builder";
-import { generateExperience, regenerateWithFeedback } from "./gemini";
+import { generateExperience, regenerateWithFeedback, getUserLlmConfig, type LlmConfig } from "./llm";
 import { validateMarkdy } from "./markdy-validate";
 import {
   experienceGenerationSchema,
@@ -25,6 +25,7 @@ const PipelineState = Annotation.Root({
   userRequest: Annotation<string | undefined>(),
 
   context: Annotation<ContextPackage | undefined>(),
+  llm: Annotation<LlmConfig | undefined>(),
   rawOutput: Annotation<string | undefined>(),
   parsed: Annotation<ExperienceGeneration | undefined>(),
 
@@ -54,33 +55,56 @@ type State = typeof PipelineState.State;
 const MAX_ATTEMPTS = 6;
 
 async function buildContextNode(state: State): Promise<Partial<State>> {
-  const context = await buildContext({
-    userId: state.userId,
-    conceptSlug: state.conceptSlug,
-    contract: state.contract,
-    userRequest: state.userRequest,
-  });
-  return { context };
+  const [context, llm] = await Promise.all([
+    buildContext({
+      userId: state.userId,
+      conceptSlug: state.conceptSlug,
+      contract: state.contract,
+      userRequest: state.userRequest,
+    }),
+    getUserLlmConfig(state.userId),
+  ]);
+  return { context, llm };
 }
 
 async function generateNode(state: State): Promise<Partial<State>> {
   if (!state.context) throw new Error("generateNode ran before context was built");
+  if (!state.llm) throw new Error("generateNode ran before the learner's LLM config was resolved");
 
-  const rawOutput =
-    state.attempt === 0
-      ? await generateExperience(state.context)
-      : await regenerateWithFeedback(state.context, state.rawOutput ?? "", state.errors);
-
-  return { rawOutput, attempt: state.attempt + 1 };
+  // The chosen provider/model can itself fail the network call (e.g. an
+  // OpenRouter free model getting rate-limited on its shared upstream pool
+  // mid-generation) — that's a thrown error, not just bad JSON, and without
+  // catching it here it was an unhandled rejection crashing the whole route
+  // instead of feeding back into the existing retry loop.
+  try {
+    const rawOutput =
+      state.attempt === 0
+        ? await generateExperience(state.context, state.llm)
+        : await regenerateWithFeedback(state.context, state.rawOutput ?? "", state.errors, state.llm);
+    return { rawOutput, attempt: state.attempt + 1 };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      rawOutput: undefined,
+      errors: [`provider (${state.llm.provider}/${state.llm.model}): ${message}`],
+      attempt: state.attempt + 1,
+    };
+  }
 }
 
 function validateNode(state: State): Partial<State> {
   const errors: string[] = [];
   let rawParsed: ExperienceGeneration | undefined;
 
+  if (!state.rawOutput) {
+    // generateNode caught a provider-level failure — surface that reason
+    // directly rather than a generic "not valid JSON" that would hide it.
+    return { errors: state.errors.length ? state.errors : ["schema: no response from provider"], status: "pending" };
+  }
+
   // 1. JSON / schema validation
   try {
-    const json = JSON.parse(state.rawOutput ?? "");
+    const json = JSON.parse(state.rawOutput);
     const result = experienceGenerationSchema.safeParse(json);
     if (!result.success) {
       errors.push(...result.error.issues.map((i) => `schema: ${i.path.join(".")} — ${i.message}`));

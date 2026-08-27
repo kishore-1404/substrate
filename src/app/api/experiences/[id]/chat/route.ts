@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq, and, asc } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { experiences, experienceStages, concepts, experienceChatMessages } from "@/lib/db/schema";
-import { chatAboutConcept } from "@/lib/ai/gemini";
+import { chatAboutConcept, getUserLlmConfig } from "@/lib/ai/llm";
 
 // This also calls Gemini (chatAboutConcept) — same Vercel timeout headroom
 // as the generate route, though a single chat turn is normally much faster
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .where(and(eq(experienceChatMessages.experienceId, id), eq(experienceChatMessages.userId, userId)))
     .orderBy(asc(experienceChatMessages.createdAt));
 
+  const llm = await getUserLlmConfig(userId);
   const reply = await chatAboutConcept(
     {
       title: concept?.title ?? experience.title,
@@ -53,7 +54,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       example: findText("example", "scenario"),
     },
     history.map((m) => ({ role: m.role, content: m.content })),
-    message
+    message,
+    llm
   );
 
   const [userMsg, assistantMsg] = await db

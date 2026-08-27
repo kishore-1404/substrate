@@ -1,25 +1,29 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { books, chapters, topics, concepts, experiences } from "@/lib/db/schema";
+import { withDbRetry } from "@/lib/db/retry";
 import { LibraryBrowser } from "@/components/library/library-browser";
 
 export const dynamic = "force-dynamic";
 
 export default async function LibraryPage() {
-  const [book] = await db.select().from(books).where(eq(books.slug, "ddia"));
+  const [book] = await withDbRetry(() => db.select().from(books).where(eq(books.slug, "ddia")));
   if (!book) return <div className="p-8">No book seeded yet — run `npm run seed:book`.</div>;
 
   // Select only the columns the browser actually renders — the previous
   // version pulled every column, including each concept's full sourceChunk
   // (real book paragraphs, several KB each × 460+ rows) just to show a
   // title. That was the single biggest page-weight/latency cost in the app.
+  // Each query gets one retry against a transient Neon fetch failure.
   const [chapterRows, topicRows, conceptRows, experienceRows] = await Promise.all([
-    db.select().from(chapters).where(eq(chapters.bookId, book.id)),
-    db.select({ id: topics.id, chapterId: topics.chapterId, title: topics.title }).from(topics),
-    db.select({ id: concepts.id, slug: concepts.slug, title: concepts.title, topicId: concepts.topicId }).from(concepts),
-    db
-      .select({ id: experiences.id, conceptId: experiences.conceptId, personalizationBucket: experiences.personalizationBucket })
-      .from(experiences),
+    withDbRetry(() => db.select().from(chapters).where(eq(chapters.bookId, book.id))),
+    withDbRetry(() => db.select({ id: topics.id, chapterId: topics.chapterId, title: topics.title }).from(topics)),
+    withDbRetry(() => db.select({ id: concepts.id, slug: concepts.slug, title: concepts.title, topicId: concepts.topicId }).from(concepts)),
+    withDbRetry(() =>
+      db
+        .select({ id: experiences.id, conceptId: experiences.conceptId, personalizationBucket: experiences.personalizationBucket })
+        .from(experiences)
+    ),
   ]);
 
   const data = {
