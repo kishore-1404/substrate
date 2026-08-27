@@ -247,21 +247,21 @@ export function ExperiencePlayer({
   }, [step]);
 
   return (
-    <div className="flex max-w-6xl gap-6">
+    <div className="flex max-w-6xl flex-col gap-6 lg:flex-row">
       <div className="flex min-w-0 flex-1 flex-col gap-[22px]">
-        <div className="flex items-baseline justify-between">
-          <div>
-            <p className="mb-1.5 font-mono text-xs text-muted-foreground">{breadcrumb}</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
+          <div className="min-w-0">
+            <p className="mb-1.5 truncate font-mono text-xs text-muted-foreground">{breadcrumb}</p>
             <h1 className="text-[22px] font-semibold">{data.experience.title}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {versions.length > 1 && (
               <div className="relative">
                 <Button variant="outline" size="sm" onClick={() => setVersionMenuOpen((v) => !v)}>
                   Version ▾
                 </Button>
                 {versionMenuOpen && (
-                  <div className="absolute right-0 z-10 mt-1 w-64 rounded-lg border bg-card p-1.5 shadow-lg">
+                  <div className="absolute right-0 z-10 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-lg border bg-card p-1.5 shadow-lg">
                     {versions.map((v) => (
                       <button
                         key={v.id}
@@ -298,12 +298,14 @@ export function ExperiencePlayer({
           </div>
         </div>
 
-        <div className="flex gap-1">
+        <div className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           {UI_STEPS.map((s, i) => (
             <button
               key={s.key}
               onClick={() => setStep(i)}
-              className={`flex flex-1 flex-col gap-1.5 border-b-[3px] pb-2.5 text-left ${i === step ? "border-primary" : "border-muted"}`}
+              className={`flex w-[92px] shrink-0 flex-col gap-1.5 border-b-[3px] pb-2.5 text-left sm:w-auto sm:flex-1 ${
+                i === step ? "border-primary" : "border-muted"
+              }`}
             >
               <span className={`font-mono text-[11px] font-semibold ${i === step ? "text-foreground" : "text-muted-foreground"}`}>
                 {String(i + 1).padStart(2, "0")}
@@ -443,21 +445,32 @@ export function ExperiencePlayer({
         </p>
       </div>
 
-      {/* Persistent split-pane book reference — sits beside the generated
-          content instead of covering it, so both are readable together. */}
+      {/* Persistent split-pane book reference at lg+ — sits beside the
+          generated content instead of covering it, so both are readable
+          together. Below lg there's no room for a side-by-side pane, so it
+          becomes a bottom-sheet-style overlay over a backdrop instead. */}
       {bookOpen && (
-        <aside className="sticky top-10 flex h-fit max-h-[calc(100vh-80px)] w-[360px] shrink-0 flex-col overflow-y-auto rounded-2xl border bg-card p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <p className="font-mono text-[11px] font-semibold tracking-wide text-muted-foreground">FROM THE BOOK</p>
-            <button onClick={() => setBookOpen(false)} className="text-muted-foreground hover:text-foreground" aria-label="Close book panel">
-              ×
-            </button>
-          </div>
-          <h2 className="mb-3 text-base font-semibold">{conceptTitle}</h2>
-          <Markdown size="base" className="prose-p:leading-[1.8]">
-            {sourceChunk || "_No source excerpt available for this concept._"}
-          </Markdown>
-        </aside>
+        <>
+          <div
+            role="presentation"
+            onClick={() => setBookOpen(false)}
+            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          />
+          <aside
+            className="fixed inset-x-0 bottom-0 z-50 flex h-[85vh] w-full flex-col overflow-y-auto rounded-t-2xl border bg-card p-5 shadow-lg lg:sticky lg:inset-auto lg:top-10 lg:z-auto lg:h-fit lg:max-h-[calc(100vh-80px)] lg:w-[360px] lg:shrink-0 lg:rounded-2xl lg:p-6"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <p className="font-mono text-[11px] font-semibold tracking-wide text-muted-foreground">FROM THE BOOK</p>
+              <button onClick={() => setBookOpen(false)} className="text-muted-foreground hover:text-foreground" aria-label="Close book panel">
+                ×
+              </button>
+            </div>
+            <h2 className="mb-3 text-base font-semibold">{conceptTitle}</h2>
+            <Markdown size="base" className="prose-p:leading-[1.8]">
+              {sourceChunk || "_No source excerpt available for this concept._"}
+            </Markdown>
+          </aside>
+        </>
       )}
 
       <Sheet open={explainOpen} onOpenChange={setExplainOpen}>

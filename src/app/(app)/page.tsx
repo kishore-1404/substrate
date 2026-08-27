@@ -77,7 +77,7 @@ export default async function Home() {
       </div>
 
       {featured && (
-        <div className="flex items-stretch gap-5 rounded-2xl border bg-card px-7 py-6">
+        <div className="flex flex-col items-start gap-5 rounded-2xl border bg-card px-5 py-6 sm:flex-row sm:items-stretch sm:px-7">
           <div className="flex flex-1 flex-col justify-center gap-1.5">
             <p className="font-mono text-[11px] font-semibold tracking-wide text-muted-foreground">
               {featured.bookTitle.toUpperCase()} · CH.{featured.chapterNumber} {featured.chapterTitle.toUpperCase()} · {featured.topicTitle.toUpperCase()}
@@ -87,7 +87,9 @@ export default async function Home() {
           </div>
           <Link
             href={`/experience/${featured.id}`}
-            className={buttonVariants({ className: "h-auto self-center whitespace-nowrap rounded-lg px-6 py-3 text-sm font-semibold" })}
+            className={buttonVariants({
+              className: "h-auto w-full self-center whitespace-nowrap rounded-lg px-6 py-3 text-sm font-semibold sm:w-auto",
+            })}
           >
             Resume experience
           </Link>
@@ -98,11 +100,11 @@ export default async function Home() {
         <div className="flex flex-col gap-3.5">
           <p className="text-[15px] font-semibold">Concepts to revisit</p>
           {toRevisit.map((m) => (
-            <div key={m.id} className="flex items-center gap-4 rounded-[10px] border bg-card px-[18px] py-3.5">
-              <span className="flex-1 text-sm font-medium">{m.concept!.title}</span>
-              <Progress value={m.masteryPct} className="h-1.5 w-[120px]" />
-              <span className="w-[34px] font-mono text-xs font-semibold text-muted-foreground">{Math.round(m.masteryPct)}%</span>
-              <Link href="/progress" className="text-xs font-semibold text-accent-foreground">
+            <div key={m.id} className="flex items-center gap-3 rounded-[10px] border bg-card px-3.5 py-3.5 sm:gap-4 sm:px-[18px]">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">{m.concept!.title}</span>
+              <Progress value={m.masteryPct} className="h-1.5 w-[60px] shrink-0 sm:w-[120px]" />
+              <span className="w-[34px] shrink-0 font-mono text-xs font-semibold text-muted-foreground">{Math.round(m.masteryPct)}%</span>
+              <Link href="/progress" className="shrink-0 text-xs font-semibold text-accent-foreground">
                 Revisit
               </Link>
             </div>

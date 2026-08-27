@@ -44,7 +44,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center p-10">
+    <div className="flex min-h-screen w-full flex-col items-center justify-center p-5 sm:p-10">
       <div className="flex w-full max-w-[560px] flex-col gap-9">
         <div className="flex items-center justify-center gap-2.5">
           <div className="h-[9px] w-[9px] rounded-[2px] bg-primary" />
@@ -64,7 +64,7 @@ export default function OnboardingPage() {
         </div>
 
         {!isConfirm ? (
-          <div className="flex flex-col gap-6 rounded-2xl border bg-card p-10">
+          <div className="flex flex-col gap-6 rounded-2xl border bg-card p-6 sm:p-10">
             <p className="text-xl font-semibold leading-snug">{current.q}</p>
             <div className="flex flex-col gap-2.5">
               {current.options.map((opt) => (
@@ -96,7 +96,7 @@ export default function OnboardingPage() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-4 rounded-2xl border bg-card p-11 text-center">
+          <div className="flex flex-col gap-4 rounded-2xl border bg-card p-6 text-center sm:p-11">
             <p className="text-xl font-semibold">You&apos;re set</p>
             <p className="text-sm leading-relaxed text-muted-foreground">
               We&apos;ll pace explanations and challenges to what you told us. You can always ask for something simpler,

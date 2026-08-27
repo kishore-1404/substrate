@@ -35,7 +35,7 @@ export default async function ProgressPage() {
     <div className="flex max-w-[760px] flex-col gap-7">
       <h1 className="text-[26px] font-semibold">Progress</h1>
 
-      <div className="flex gap-4">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         <StatCard label="DAYS ACTIVE" value={String(activeDays.size)} />
         <StatCard label="ATTEMPTS" value={String(totalAttempts)} />
         <StatCard label="MISTAKES" value={String(totalMistakes)} />
@@ -45,11 +45,11 @@ export default async function ProgressPage() {
         <div className="flex flex-col gap-3.5">
           <p className="font-mono text-[11px] text-muted-foreground">CONCEPT MASTERY</p>
           {rows.map((r) => (
-            <div key={r.id} className="flex items-center gap-4">
-              <span className="w-[190px] truncate text-sm font-medium">{r.concept!.title}</span>
-              <ProgressBar value={r.masteryPct} className="h-2 flex-1" />
-              <span className="w-9 text-right font-mono text-xs text-muted-foreground">{Math.round(r.masteryPct)}%</span>
-              <span className="w-[90px] font-mono text-[11px] font-semibold text-destructive">
+            <div key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 sm:flex-nowrap">
+              <span className="min-w-0 basis-full truncate text-sm font-medium sm:basis-[190px]">{r.concept!.title}</span>
+              <ProgressBar value={r.masteryPct} className="h-2 min-w-[80px] flex-1" />
+              <span className="w-9 shrink-0 text-right font-mono text-xs text-muted-foreground">{Math.round(r.masteryPct)}%</span>
+              <span className="shrink-0 font-mono text-[11px] font-semibold text-destructive sm:w-[90px]">
                 {r.masteryPct < 70 ? "NEEDS REVIEW" : ""}
               </span>
             </div>
@@ -64,9 +64,9 @@ export default async function ProgressPage() {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex-1 rounded-xl border bg-card p-5">
-      <p className="font-mono text-[11px] text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
+    <div className="min-w-0 rounded-xl border bg-card p-3 sm:p-5">
+      <p className="truncate font-mono text-[10px] text-muted-foreground sm:text-[11px]">{label}</p>
+      <p className="mt-1 text-xl font-semibold sm:text-2xl">{value}</p>
     </div>
   );
 }

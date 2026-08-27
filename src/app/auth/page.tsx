@@ -38,14 +38,14 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center p-10">
+    <div className="flex min-h-screen w-full flex-col items-center justify-center p-5 sm:p-10">
       <div className="flex w-full max-w-[420px] flex-col gap-7">
         <div className="flex items-center justify-center gap-2.5">
           <div className="h-[9px] w-[9px] rounded-[2px] bg-primary" />
           <span className="font-mono text-sm font-semibold tracking-wide text-muted-foreground">SUBSTRATE</span>
         </div>
 
-        <div className="flex flex-col gap-5 rounded-2xl border bg-card p-8">
+        <div className="flex flex-col gap-5 rounded-2xl border bg-card p-6 sm:p-8">
           <div className="flex rounded-[9px] border p-[3px]">
             {(["signup", "login"] as const).map((m) => (
               <button

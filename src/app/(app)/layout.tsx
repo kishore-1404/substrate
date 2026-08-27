@@ -16,13 +16,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!userId) redirect("/auth");
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen lg:flex">
       <SidebarShell>
         <Suspense fallback={<SidebarUserPanelSkeleton />}>
           <SidebarUserPanelServer userId={userId} />
         </Suspense>
       </SidebarShell>
-      <main className="max-w-[1440px] flex-1 overflow-x-auto px-12 py-10">{children}</main>
+      <main className="max-w-[1440px] flex-1 overflow-x-hidden px-4 pt-20 pb-8 sm:px-6 sm:pt-24 sm:pb-10 lg:overflow-x-auto lg:px-12 lg:py-10 lg:pt-10">
+        {children}
+      </main>
     </div>
   );
 }

@@ -24,7 +24,7 @@ export function BookGrid({ books }: { books: BookRow[] }) {
           </button>
         </div>
       )}
-      <div className="flex gap-4">
+      <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
         {books.map((b) => {
           const content = (
             <>
