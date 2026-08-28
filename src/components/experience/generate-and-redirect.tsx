@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Markdown } from "@/components/ui/markdown";
 import { Button } from "@/components/ui/button";
+import { saveConceptChunk } from "@/lib/offline-library";
 
 // Trigger #1 from experience_spec_replication_lag.md §4: first-time
 // generation for a (concept, bucket). There is no bulk pre-seeding — this
@@ -59,6 +60,10 @@ export function GenerateAndRedirect({
     generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    void saveConceptChunk({ slug: conceptSlug, title: conceptTitle, sourceChunk });
+  }, [conceptSlug, conceptTitle, sourceChunk]);
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">

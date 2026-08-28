@@ -10,6 +10,14 @@ import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Markdown } from "@/components/ui/markdown";
+import {
+  getConceptChunk,
+  isOfflineStorageEnabled,
+  requestPersistentStorage,
+  saveConceptChunk,
+  setOfflineStorageEnabled,
+} from "@/lib/offline-library";
+import { useSwipeToDismiss } from "@/lib/use-swipe-to-dismiss";
 
 // Code-split the diagram renderer + its @markdy/renderer-dom dependency
 // into their own chunk, only fetched when a diagram stage actually mounts —
@@ -61,6 +69,17 @@ function stageByType(stages: StageRow[], type: string) {
   return stages.find((s) => s.type === type);
 }
 
+function DiagramHiddenNotice({ onShow }: { onShow: () => void }) {
+  return (
+    <div className="flex h-[220px] flex-col items-center justify-center gap-3 rounded-xl border bg-muted/40 text-center">
+      <p className="max-w-xs text-sm text-muted-foreground">Diagram hidden while the book panel is open — close it to view the diagram again.</p>
+      <Button size="sm" variant="outline" onClick={onShow}>
+        Close book
+      </Button>
+    </div>
+  );
+}
+
 export function ExperiencePlayer({
   userId,
   conceptSlug,
@@ -98,6 +117,27 @@ export function ExperiencePlayer({
   // the book excerpt AND the generated content at the same time, side by
   // side, not context-switch into a drawer that covers one to see the other.
   const [bookOpen, setBookOpen] = useState(false);
+  const [offlineSaved, setOfflineSaved] = useState(false);
+  const [offlineEnabled, setOfflineEnabledState] = useState(true);
+  const [offlineFallback, setOfflineFallback] = useState<string | null>(null);
+
+  // Below lg, the book panel is a full overlay — Markdy's own controls
+  // (speed menu, fullscreen) are portaled to <body> with a z-index far above
+  // anything in this component (see @markdy/renderer-dom), so they'd render
+  // on top of the book overlay no matter how we stack our own z-indexes.
+  // Unmounting the diagram while the overlay covers it (mobile only — at lg+
+  // the book sits beside the content, never over it) is the only reliable
+  // fix short of patching the third-party control chrome.
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023.98px)");
+    setIsNarrowViewport(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setIsNarrowViewport(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  const diagramHidden = bookOpen && isNarrowViewport;
+  const bookSwipe = useSwipeToDismiss(() => openBook(false));
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
@@ -107,6 +147,26 @@ export function ExperiencePlayer({
 
   const [versions, setVersions] = useState<VersionInfo[]>([]);
   const [versionMenuOpen, setVersionMenuOpen] = useState(false);
+
+  // The book panel and the chat/explain sheets are all full-overlay on
+  // mobile and share the same z-index tier — letting more than one be open
+  // at once means two bottom sheets fighting for the same screen region.
+  // Opening any one of them closes the others.
+  const openBook = useCallback((next: boolean) => {
+    setBookOpen(next);
+    if (next) {
+      setChatOpen(false);
+      setExplainOpen(false);
+    }
+  }, []);
+  const openChat = useCallback((next: boolean) => {
+    setChatOpen(next);
+    if (next) setBookOpen(false);
+  }, []);
+  const openExplain = useCallback((next: boolean) => {
+    setExplainOpen(next);
+    if (next) setBookOpen(false);
+  }, []);
 
   const setStep = useCallback(
     (next: number) => {
@@ -125,6 +185,29 @@ export function ExperiencePlayer({
       .then((j) => setVersions(j.versions ?? []))
       .catch(() => {});
   }, [conceptSlug]);
+
+  // Persist the book excerpt for this concept the moment it's on the page,
+  // not only when the panel opens — so a concept the learner never opens the
+  // book on is still saved offline for later. Default on, toggleable below.
+  useEffect(() => {
+    setOfflineEnabledState(isOfflineStorageEnabled());
+    void requestPersistentStorage();
+  }, []);
+
+  useEffect(() => {
+    if (!offlineEnabled) return;
+    if (sourceChunk) {
+      void saveConceptChunk({ slug: conceptSlug, title: conceptTitle, sourceChunk }).then(() => setOfflineSaved(true));
+    } else {
+      // Server sent nothing (e.g. offline navigation) — fall back to
+      // whatever was saved from a previous visit.
+      void getConceptChunk(conceptSlug).then((cached) => {
+        if (cached) setOfflineFallback(cached.sourceChunk);
+      });
+    }
+  }, [conceptSlug, conceptTitle, sourceChunk, offlineEnabled]);
+
+  const displayedSourceChunk = sourceChunk || offlineFallback || "";
 
   const { stages } = data;
   const mentalModel = stageByType(stages, "mental_model");
@@ -235,16 +318,16 @@ export function ExperiencePlayer({
       if (["ArrowRight", "l", "n"].includes(e.key)) setStep(step + 1);
       else if (["ArrowLeft", "h", "p"].includes(e.key)) setStep(step - 1);
       else if (/^[1-6]$/.test(e.key)) setStep(Number(e.key) - 1);
-      else if (e.key === "b") setBookOpen((v) => !v);
+      else if (e.key === "b") openBook(!bookOpen);
       else if (e.key === "c") {
-        setChatOpen((v) => !v);
+        openChat(!chatOpen);
         loadChat();
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  }, [step, bookOpen, chatOpen]);
 
   return (
     <div className="flex max-w-6xl flex-col gap-6 lg:flex-row">
@@ -277,14 +360,14 @@ export function ExperiencePlayer({
                 )}
               </div>
             )}
-            <Button variant={bookOpen ? "default" : "outline"} size="sm" onClick={() => setBookOpen((v) => !v)}>
+            <Button variant={bookOpen ? "default" : "outline"} size="sm" onClick={() => openBook(!bookOpen)}>
               {bookOpen ? "Hide book" : "Read the book"}
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
-                setChatOpen(true);
+                openChat(true);
                 loadChat();
               }}
             >
@@ -298,20 +381,30 @@ export function ExperiencePlayer({
           </div>
         </div>
 
-        <div className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="relative">
+          <div className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            {UI_STEPS.map((s, i) => (
+              <button
+                key={s.key}
+                onClick={() => setStep(i)}
+                className={`flex w-[92px] shrink-0 flex-col gap-1.5 border-b-[3px] pb-2.5 text-left sm:w-auto sm:flex-1 ${
+                  i === step ? "border-primary" : "border-muted"
+                }`}
+              >
+                <span className={`font-mono text-[11px] font-semibold ${i === step ? "text-foreground" : "text-muted-foreground"}`}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className={`text-xs font-medium ${i === step ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</span>
+              </button>
+            ))}
+          </div>
+          {/* Hints that the tab row scrolls further — only relevant below sm,
+              where the tabs are fixed-width instead of stretching to fill. */}
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent sm:hidden" />
+        </div>
+        <div className="flex justify-center gap-1.5 sm:hidden">
           {UI_STEPS.map((s, i) => (
-            <button
-              key={s.key}
-              onClick={() => setStep(i)}
-              className={`flex w-[92px] shrink-0 flex-col gap-1.5 border-b-[3px] pb-2.5 text-left sm:w-auto sm:flex-1 ${
-                i === step ? "border-primary" : "border-muted"
-              }`}
-            >
-              <span className={`font-mono text-[11px] font-semibold ${i === step ? "text-foreground" : "text-muted-foreground"}`}>
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span className={`text-xs font-medium ${i === step ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</span>
-            </button>
+            <span key={s.key} className={`h-1.5 w-1.5 rounded-full ${i === step ? "bg-primary" : "bg-muted"}`} />
           ))}
         </div>
 
@@ -330,7 +423,7 @@ export function ExperiencePlayer({
 
             {step === 1 && (
               <div className="space-y-4">
-                {markdyCode && <MarkdyDiagram code={markdyCode} autoplay />}
+                {markdyCode && (diagramHidden ? <DiagramHiddenNotice onShow={() => openBook(false)} /> : <MarkdyDiagram code={markdyCode} autoplay />)}
                 {example && (
                   <Markdown size="base" className="text-muted-foreground">
                     {(example.payload as { scenario?: string })?.scenario ?? ""}
@@ -341,7 +434,7 @@ export function ExperiencePlayer({
 
             {step === 2 && simConfig && (
               <div className="space-y-4">
-                {markdyCode && <MarkdyDiagram code={markdyCode} autoplay />}
+                {markdyCode && (diagramHidden ? <DiagramHiddenNotice onShow={() => openBook(false)} /> : <MarkdyDiagram code={markdyCode} autoplay />)}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span>Write traffic</span>
@@ -429,7 +522,7 @@ export function ExperiencePlayer({
                       <Button variant="outline" onClick={retakeAssessment}>
                         Retake assessment
                       </Button>
-                      <Button variant="outline" onClick={() => setExplainOpen(true)}>
+                      <Button variant="outline" onClick={() => openExplain(true)}>
                         Explain differently
                       </Button>
                     </div>
@@ -440,7 +533,7 @@ export function ExperiencePlayer({
           </CardContent>
         </Card>
 
-        <p className="text-center font-mono text-[11px] text-muted-foreground">
+        <p className="hidden text-center font-mono text-[11px] text-muted-foreground sm:block">
           ← → to navigate stages · 1–6 to jump · B for the book · C to ask a question
         </p>
       </div>
@@ -458,7 +551,11 @@ export function ExperiencePlayer({
           />
           <aside
             className="fixed inset-x-0 bottom-0 z-50 flex h-[85vh] w-full flex-col overflow-y-auto rounded-t-2xl border bg-card p-5 shadow-lg lg:sticky lg:inset-auto lg:top-10 lg:z-auto lg:h-fit lg:max-h-[calc(100vh-80px)] lg:w-[360px] lg:shrink-0 lg:rounded-2xl lg:p-6"
+            style={bookSwipe.dragY ? { transform: `translateY(${bookSwipe.dragY}px)` } : undefined}
           >
+            <div {...bookSwipe.handlers} className="-mt-1 mb-2 flex justify-center py-1 lg:hidden">
+              <div className="h-1 w-9 rounded-full bg-muted-foreground/30" />
+            </div>
             <div className="mb-4 flex items-center justify-between">
               <p className="font-mono text-[11px] font-semibold tracking-wide text-muted-foreground">FROM THE BOOK</p>
               <button onClick={() => setBookOpen(false)} className="text-muted-foreground hover:text-foreground" aria-label="Close book panel">
@@ -467,13 +564,34 @@ export function ExperiencePlayer({
             </div>
             <h2 className="mb-3 text-base font-semibold">{conceptTitle}</h2>
             <Markdown size="base" className="prose-p:leading-[1.8]">
-              {sourceChunk || "_No source excerpt available for this concept._"}
+              {displayedSourceChunk || "_No source excerpt available for this concept._"}
             </Markdown>
+            <div className="mt-5 flex items-center justify-between border-t pt-3">
+              <span className="text-xs text-muted-foreground">
+                {offlineEnabled ? (offlineSaved || offlineFallback ? "Saved for offline reading" : "Saving for offline…") : "Offline saving is off"}
+              </span>
+              <button
+                onClick={() => {
+                  const next = !offlineEnabled;
+                  setOfflineEnabledState(next);
+                  setOfflineStorageEnabled(next);
+                  if (!next) {
+                    setOfflineSaved(false);
+                    setOfflineFallback(null);
+                  }
+                }}
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  offlineEnabled ? "bg-accent text-accent-foreground" : "border text-muted-foreground"
+                }`}
+              >
+                {offlineEnabled ? "On" : "Off"}
+              </button>
+            </div>
           </aside>
         </>
       )}
 
-      <Sheet open={explainOpen} onOpenChange={setExplainOpen}>
+      <Sheet open={explainOpen} onOpenChange={openExplain}>
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Explain differently</SheetTitle>
@@ -504,7 +622,7 @@ export function ExperiencePlayer({
         </SheetContent>
       </Sheet>
 
-      <Sheet open={chatOpen} onOpenChange={setChatOpen}>
+      <Sheet open={chatOpen} onOpenChange={openChat}>
         <SheetContent className="flex flex-col sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>Ask about {conceptTitle}</SheetTitle>

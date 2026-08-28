@@ -39,6 +39,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   const navItems = [
     { label: "Home", href: "/" },
     { label: "Library", href: "/library" },
+    { label: "Reader", href: "/reader" },
     { label: "Progress", href: "/progress" },
   ];
 
